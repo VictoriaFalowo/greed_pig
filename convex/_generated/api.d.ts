@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as games from "../games.js";
+import type * as lib_doubleJeopardyRules from "../lib/doubleJeopardyRules.js";
 import type * as messages from "../messages.js";
 
 import type {
@@ -17,6 +19,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  games: typeof games;
+  "lib/doubleJeopardyRules": typeof lib_doubleJeopardyRules;
   messages: typeof messages;
 }>;
 
