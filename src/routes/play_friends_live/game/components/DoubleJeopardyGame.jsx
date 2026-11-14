@@ -169,7 +169,7 @@ export default function DoubleJeopardyGame() {
   if (!gameId || game === null) {
     return (
       <div className="min-h-screen grid place-content-center gap-4 text-white text-center p-4">
-        <p>We couldn't find this game.</p>
+        <p>We couldn&apos;t find this game.</p>
         <Link to="/live-game/setup" className="underline">
           Back to setup
         </Link>
