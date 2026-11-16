@@ -10,7 +10,7 @@ Academic session 2026/2027 (First Semester) | **Group 1**
 
 | Name            | Matric number     | Improvement        | Category                     |
 | --------------- | ----------------- | ------------------ | ---------------------------- |
-| Flourish        | `<matric number>` | 1. Game Tutorial   | Accessibility and Experience |
+| Flourish        | 24120112062       | 1. Game Tutorial   | Accessibility and Experience |
 | Esuga           | 24120112061       | 2. Double Jeopardy | Gameplay and Rules           |
 | Victoria Falowo | 23120112022       | 3. Game Statistics | Competition                  |
 
@@ -30,7 +30,7 @@ Base game: <https://greedy-pig.vercel.app/> | Base repo: <https://github.com/Hem
 
 ## Improvement 1: Game Tutorial
 
-`<Flourish: add what you built, how it works, and your files here>`
+Implemented a guided tutorial for Greedy Pig. When starting a new game, players are given the option to either go through the tutorial to learn how the game works or skip it and proceed directly to gameplay.
 
 ## Improvement 2: Double Jeopardy
 
