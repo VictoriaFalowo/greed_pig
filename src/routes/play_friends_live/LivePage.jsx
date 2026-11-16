@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { useGreedyPigContext } from "src/context/useGreedyPigContext";
 import { LiveGameContext } from "src/context/useLiveGameContext";
@@ -10,6 +10,37 @@ import {
   createGameLog,
   finishGameLog as finishLog,
 } from "src/utils/live_game/gameLog";
+
+const SAVED_GAME_KEY = "greedyPig.doubleJeopardyGame";
+
+const SAVED_LOG_KEY = "greedyPig.doubleJeopardyLog";
+
+function loadSavedLog() {
+  try {
+    const log = JSON.parse(localStorage.getItem(SAVED_LOG_KEY));
+    return log && log.mode === "double_jeopardy" ? log : null;
+  } catch {
+    return null;
+  }
+}
+// Read the saved game, but only trust it if it belongs to this Convex deployment.
+function loadSavedGame() {
+  try {
+    const raw = localStorage.getItem(SAVED_GAME_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (
+      saved.mode === "double_jeopardy" &&
+      typeof saved.gameId === "string" &&
+      saved.deployment === import.meta.env.VITE_CONVEX_URL
+    ) {
+      return saved;
+    }
+  } catch {
+    // Storage can be blocked or corrupted; start fresh.
+  }
+  return null;
+}
 
 function LiveGamePage() {
   const { preloadSrcList, pigPetNames } = useGreedyPigContext();
@@ -26,48 +57,72 @@ function LiveGamePage() {
   const [diceValue, setDiceValue] = useState(0);
   const [currentPlayer, setCurrentPlayer] = useState(0);
   const [gameMode, setGameMode] = useState("classic"); // "classic" | "double_jeopardy"
-  const [activeMode, setActiveMode] = useState("classic");
-  const [gameId, setGameId] = useState(null); // Convex game id (Double Jeopardy only)
-  const gameLogRef = useRef(null);
+  const [savedGame] = useState(loadSavedGame);
+  const [activeMode, setActiveMode] = useState(
+    savedGame ? "double_jeopardy" : "classic",
+  );
+  const [gameId, setGameId] = useState(savedGame ? savedGame.gameId : null);
+  const [initialLog] = useState(() => (savedGame ? loadSavedLog() : null));
+  const gameLogRef = useRef(initialLog);
 
-  function startGameLog({ mode = "classic", targetScore, players }) {
-    gameLogRef.current = createGameLog({
-      clientGameId: generateId(),
-      mode,
-      targetScore: Number(targetScore),
-      players,
-    });
+  function updateGameLog(nextLog) {
+    gameLogRef.current = nextLog;
+    try {
+      localStorage.setItem(SAVED_LOG_KEY, JSON.stringify(nextLog));
+    } catch {
+      // Ignore storage errors; the log just won't survive a refresh.
+    }
   }
 
-  function logRoll(seat, dice, busted) {
-    gameLogRef.current = addRollToGameLog(
-      gameLogRef.current,
-      seat,
-      dice,
-      busted,
+  function startGameLog({ mode = "classic", targetScore, players }) {
+    updateGameLog(
+      createGameLog({
+        clientGameId: generateId(),
+        mode,
+        targetScore: Number(targetScore),
+        players,
+      }),
     );
   }
 
+  function logRoll(seat, dice, busted) {
+    updateGameLog(addRollToGameLog(gameLogRef.current, seat, dice, busted));
+  }
+
   function logPass(seat, pointsBanked) {
-    gameLogRef.current = closeGameLogTurn(
-      gameLogRef.current,
-      seat,
-      "banked",
-      pointsBanked,
+    updateGameLog(
+      closeGameLogTurn(gameLogRef.current, seat, "banked", pointsBanked),
     );
   }
 
   function finishGameLog(winnerSeat, winnerRunningPoints) {
-    gameLogRef.current = finishLog(
-      gameLogRef.current,
-      winnerSeat,
-      winnerRunningPoints,
+    updateGameLog(
+      finishLog(gameLogRef.current, winnerSeat, winnerRunningPoints),
     );
   }
 
   function getGameLog() {
     return gameLogRef.current;
   }
+
+  useEffect(() => {
+    try {
+      if (activeMode === "double_jeopardy" && gameId) {
+        localStorage.setItem(
+          SAVED_GAME_KEY,
+          JSON.stringify({
+            mode: "double_jeopardy",
+            gameId,
+            deployment: import.meta.env.VITE_CONVEX_URL,
+          }),
+        );
+      } else {
+        localStorage.removeItem(SAVED_GAME_KEY);
+      }
+    } catch {
+      // Ignore storage errors; the game still works without refresh support.
+    }
+  }, [activeMode, gameId]);
 
   return (
     <>
