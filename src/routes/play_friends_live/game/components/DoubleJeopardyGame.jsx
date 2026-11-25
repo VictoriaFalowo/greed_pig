@@ -18,7 +18,8 @@ import DoubleJeopardyControls from "./DoubleJeopardyControls";
 import GameOver from "../GameOver";
 
 const randomFace = () => Math.floor(Math.random() * 6) + 1;
-const MIN_ROLL_MS = 600;
+const MIN_ROLL_MS = 1500;
+const REVEAL_DELAY_MS = 350;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function DoubleJeopardyGame() {
@@ -82,6 +83,8 @@ export default function DoubleJeopardyGame() {
       stopShuffle();
       setShownDice([result.die1, result.die2]);
       setAnimFaces(null);
+
+      await wait(REVEAL_DELAY_MS);
 
       const player = liveGame.players[result.playerIndex];
       const name = player.name;
