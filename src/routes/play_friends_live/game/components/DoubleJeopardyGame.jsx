@@ -18,6 +18,8 @@ import DoubleJeopardyControls from "./DoubleJeopardyControls";
 import GameOver from "../GameOver";
 
 const randomFace = () => Math.floor(Math.random() * 6) + 1;
+const MIN_ROLL_MS = 600;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function DoubleJeopardyGame() {
   const {
@@ -30,6 +32,7 @@ export default function DoubleJeopardyGame() {
   } = useLiveGameContext();
   const { preloadSrcList } = useGreedyPigContext();
   const faces = preloadSrcList.filter((src) => src.includes("dice"));
+  const [shownDice, setShownDice] = useState(null);
 
   const liveGame = useQuery(api.games.getGame, gameId ? { gameId } : "skip");
   const rollDice = useMutation(api.games.rollDoubleJeopardy);
@@ -50,18 +53,13 @@ export default function DoubleJeopardyGame() {
   // so the scoreboard doesn't reveal the result early.
   const game = busy ? frozenGame : liveGame;
 
-  function playRollAnimation() {
-    return new Promise((resolve) => {
-      let ticks = 0;
-      const timer = setInterval(() => {
-        setAnimFaces([randomFace(), randomFace()]); // visual only
-        ticks += 1;
-        if (ticks >= 10) {
-          clearInterval(timer);
-          resolve();
-        }
-      }, 100);
-    });
+  // Shuffle random faces until stopped. Visual only; the real dice come from the server.
+  function startShuffle() {
+    setAnimFaces([randomFace(), randomFace()]);
+    const timer = setInterval(() => {
+      setAnimFaces([randomFace(), randomFace()]);
+    }, 80);
+    return () => clearInterval(timer);
   }
 
   async function handleRoll() {
@@ -72,12 +70,18 @@ export default function DoubleJeopardyGame() {
     setError("");
     setChangeBackground(true);
     rollAudio?.play();
-    const animation = playRollAnimation();
+    const stopShuffle = startShuffle();
 
     try {
-      // The real dice are rolled on the Convex server.
-      const result = await rollDice({ gameId });
-      await animation;
+      // The real dice are rolled on the Convex server. Wait for the server's
+      // answer AND the minimum animation time, whichever is slower.
+      const [result] = await Promise.all([
+        rollDice({ gameId }),
+        wait(MIN_ROLL_MS),
+      ]);
+      stopShuffle();
+      setShownDice([result.die1, result.die2]);
+      setAnimFaces(null);
 
       const player = liveGame.players[result.playerIndex];
       const name = player.name;
@@ -128,7 +132,7 @@ export default function DoubleJeopardyGame() {
         });
       }
     } catch (err) {
-      await animation;
+      stopShuffle();
       setError("Couldn't roll the dice. Check your connection and try again.");
     } finally {
       setAnimFaces(null);
@@ -206,6 +210,7 @@ export default function DoubleJeopardyGame() {
   const finished = game.status === "finished";
   const dice =
     animFaces ??
+    shownDice ??
     (game.lastRoll ? [game.lastRoll.die1, game.lastRoll.die2] : null);
 
   const controlProps = {
